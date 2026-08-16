@@ -1,0 +1,12 @@
+node_modules/
+.cache/
+/tmp/.cache/
+.env
+.env.local
+.DS_Store
+npm-debug.log*
+.vercel
+# Reference material / local notes (not uploaded)
+sources for reference/
+SESSION_SUMMARY.md
+test/debug-*.js

@@ -1,0 +1,43 @@
+{
+  "id": "org.lovepeacekarma.stremio",
+  "version": "1.0.0",
+  "name": "LovePeaceKarma",
+  "description": "Direct HTTP streams from 4KHDHub, HDHub4u and 111477. No P2P. TMDB metadata source.",
+  "logo": "https://raw.githubusercontent.com/rayleighd3/LovePeaceKarma/main/assets/logo.png",
+  "background": "https://raw.githubusercontent.com/rayleighd3/LovePeaceKarma/main/assets/background.png",
+  "resources": [
+    "catalog",
+    "stream"
+  ],
+  "types": [
+    "movie",
+    "series"
+  ],
+  "idPrefixes": [
+    "tt",
+    "tmdb"
+  ],
+  "catalogs": [
+    {
+      "type": "movie",
+      "id": "tmdb-movies",
+      "name": "LovePeaceKarma Movies",
+      "extra": [
+        { "name": "search" }
+      ]
+    },
+    {
+      "type": "series",
+      "id": "tmdb-series",
+      "name": "LovePeaceKarma Series",
+      "extra": [
+        { "name": "search" }
+      ]
+    }
+  ],
+  "behaviorHints": {
+    "adult": false,
+    "p2pNotSupported": true,
+    "configurable": true
+  }
+}
