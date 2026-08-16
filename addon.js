@@ -62,7 +62,10 @@ async function runProvider(p, { tmdbId, mediaType, season, episode }) {
 async function searchCatalog(type, search) {
   try {
     const mediaType = type === 'series' ? 'tv' : 'movie';
-    const url = `https://api.themoviedb.org/3/search/${mediaType}?api_key=${TMDB_API_KEY}&query=${encodeURIComponent(search)}&page=1`;
+    // If no search term, return popular/trending rows so the Discover catalog isn't empty.
+    const url = search
+      ? `https://api.themoviedb.org/3/search/${mediaType}?api_key=${TMDB_API_KEY}&query=${encodeURIComponent(search)}&page=1`
+      : `https://api.themoviedb.org/3/${mediaType}/popular?api_key=${TMDB_API_KEY}&language=en-US&page=1`;
     const res = await axios.get(url, { timeout: 10000 });
     const results = (res.data && res.data.results) || [];
     return results.slice(0, 20).map(r => {
@@ -88,7 +91,6 @@ const builder = new addonBuilder(manifest);
 
 builder.defineCatalogHandler(async ({ type, id, extra }) => {
   const search = extra && extra.search;
-  if (!search) return { metas: [] };
   const metas = await searchCatalog(type, search);
   return { metas };
 });
