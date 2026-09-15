@@ -9,6 +9,8 @@ const PROVIDERS = [
   { key: '4khdhub', fn: (m) => m.get4KHDHubStreams(27205, 'movie') },
   { key: 'hdhub4u', fn: (m) => m.getHDHub4uStreams(27205, 'movie') },
   { key: '111477', fn: (m) => m.getStreamsFromTmdbId('movie', 27205) },
+  { key: 'videasy', fn: (m) => m.getVideasyStreams(27205, 'movie') },
+  { key: 'videasy-tv', module: 'videasy', fn: (m) => m.getVideasyStreams(66788, 'series', 1, 1) },
 ];
 
 async function main() {
@@ -20,7 +22,7 @@ async function main() {
   for (const p of list) {
     const started = Date.now();
     try {
-      const mod = require(`../providers/${p.key}.js`);
+      const mod = require(`../providers/${p.module || p.key}.js`);
       const streams = await Promise.race([
         p.fn(mod),
         new Promise(res => setTimeout(() => res('TIMEOUT'), 45000)),
