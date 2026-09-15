@@ -10,6 +10,8 @@ const PROVIDERS = [
   { key: 'hdhub4u', fn: (m) => m.getHDHub4uStreams(27205, 'movie') },
   { key: '111477', fn: (m) => m.getStreamsFromTmdbId('movie', 27205) },
   { key: 'videasy', fn: (m) => m.getVideasyStreams(27205, 'movie') },
+  { key: 'castle', fn: (m) => m.getCastleStreams(27205, 'movie') },
+  { key: 'castle-tv', module: 'castle', fn: (m) => m.getCastleStreams(66788, 'series', 1, 1) },
   { key: 'videasy-tv', module: 'videasy', fn: (m) => m.getVideasyStreams(66788, 'series', 1, 1) },
 ];
 

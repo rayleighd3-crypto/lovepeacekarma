@@ -13,6 +13,7 @@ if (ENABLE('4KHDHUB')) PROVIDERS.push({ key: '4khdhub', label: '4KHDHub' });
 if (ENABLE('HDHUB4U')) PROVIDERS.push({ key: 'hdhub4u', label: 'HDHub4u' });
 if (ENABLE('111477')) PROVIDERS.push({ key: '111477', label: '111477' });
 if (ENABLE('VIDEASY')) PROVIDERS.push({ key: 'videasy', label: 'Videasy' });
+if (ENABLE('CASTLE')) PROVIDERS.push({ key: 'castle', label: 'Castle' });
 
 // Lazy-require providers (avoid loading heavyweight deps on /manifest)
 function providerFns(key) {
@@ -21,6 +22,7 @@ function providerFns(key) {
     case 'hdhub4u': return require('./providers/hdhub4u');
     case '111477': return require('./providers/111477');
     case 'videasy': return require('./providers/videasy');
+    case 'castle': return require('./providers/castle');
     default: return null;
   }
 }
@@ -53,6 +55,8 @@ async function runProvider(p, { tmdbId, mediaType, season, episode }) {
         );
       case 'videasy':
         return await fns.getVideasyStreams(tmdbId, mediaType, season, episode);
+      case 'castle':
+        return await fns.getCastleStreams(tmdbId, mediaType, season, episode);
       default:
         return [];
     }
