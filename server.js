@@ -46,7 +46,8 @@ app.get('*configure', (req, res) => {
 <style>body{font-family:system-ui;max-width:640px;margin:40px auto;padding:0 16px;color:#222}h1{color:#8e24aa}
 code{background:#f3f3f3;padding:2px 6px;border-radius:4px}</style></head><body>
 <h1>LovePeaceKarma</h1>
-<p>Direct HTTP streams from <b>4KHDHub, HDHub4u, 111477</b>. Metadata from TMDB.</p>
+<p>Direct HTTP streams from <b>111477, 4KHDHub, HDHub4u, Videasy, Castle and ShowBox</b>. Metadata from TMDB.</p>
+<p style="color:#666">ShowBox silently skips itself unless <code>SHOWBOX_UI_COOKIE</code> (your FebBox <code>ui</code> cookie) is set.</p>
 <p>Copy the addon URL into Stremio to install.</p>
 </body></html>`);
 });

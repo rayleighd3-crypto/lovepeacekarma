@@ -12,6 +12,8 @@ const PROVIDERS = [
   { key: 'videasy', fn: (m) => m.getVideasyStreams(27205, 'movie') },
   { key: 'castle', fn: (m) => m.getCastleStreams(27205, 'movie') },
   { key: 'castle-tv', module: 'castle', fn: (m) => m.getCastleStreams(66788, 'series', 1, 1) },
+  { key: 'showbox', fn: (m) => m.getShowBoxStreams(27205, 'movie') },
+  { key: 'showbox-tv', module: 'showbox', fn: (m) => m.getShowBoxStreams(66788, 'series', 1, 1) },
   { key: 'videasy-tv', module: 'videasy', fn: (m) => m.getVideasyStreams(66788, 'series', 1, 1) },
 ];
 

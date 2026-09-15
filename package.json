@@ -1,7 +1,7 @@
 {
   "name": "lovepeacekarma",
   "version": "1.0.0",
-  "description": "LovePeaceKarma - a Stremio addon that scrapes direct HTTP streams from MovieBox, 4KHDHub, HDHub4u, UHDMovies and ShowBox, using TMDB as the metadata/search source.",
+  "description": "LovePeaceKarma - a Stremio addon that scrapes direct HTTP streams from 111477, 4KHDHub, HDHub4u, Videasy, Castle and ShowBox, using TMDB as the metadata/search source.",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",

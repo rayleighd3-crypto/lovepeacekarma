@@ -2,7 +2,7 @@
   "id": "org.lovepeacekarma.stremio",
   "version": "1.0.0",
   "name": "LovePeaceKarma",
-  "description": "Direct HTTP streams from 111477, 4KHDHub, HDHub4u, Videasy and Castle. No P2P. TMDB metadata source.",
+  "description": "Direct HTTP streams from 111477, 4KHDHub, HDHub4u, Videasy, Castle and ShowBox. No P2P. TMDB metadata source.",
   "logo": "https://raw.githubusercontent.com/rayleighd3-crypto/lovepeacekarma/main/assets/logo.png",
   "background": "https://raw.githubusercontent.com/rayleighd3-crypto/lovepeacekarma/main/assets/background.png",
   "resources": [

@@ -14,14 +14,29 @@ aggregated across all enabled providers. Results are de-duplicated and sorted by
 
 ### Providers
 
-| Provider   | Type     | Source                                                  | Status |
-|------------|----------|---------------------------------------------------------|--------|
-| **111477** | File host| `https://a.111477.xyz/` (direct directory listings)     | ✅ Active |
-| **4KHDHub**| WordPress| `https://4khdhub.one/` (auto-rotating domain)            | ✅ Active |
-| **HDHub4u**| WordPress| auto-rotating domain (TVVVV `domains.json`)              | ✅ Active |
+| Provider    | Type         | Source                                                                 | Status |
+|-------------|--------------|------------------------------------------------------------------------|--------|
+| **111477**  | File host    | `https://a.111477.xyz/` (direct directory listings)                    | ✅ Active |
+| **4KHDHub** | WordPress    | `https://4khdhub.one/` (auto-rotating domain)                          | ✅ Active |
+| **HDHub4u** | WordPress    | auto-rotating domain (TVVVV `domains.json`)                            | ✅ Active |
+| **Videasy** | Multi-server | `api.speedracelight.com` (seed + `mvm1` PRNG decrypt)                  | ✅ Active |
+| **Castle**  | App API      | `api.hlowb.com` (AES-128-CBC film-api, multi-language)                 | ✅ Active |
+| **ShowBox** | FebBox share | `id-mapping-api-showbox-proxy.hf.space` + `febbox.com`                 | ✅ Active (needs own `ui` cookie) |
+| UHDMovies   | WordPress    | TLS-blocked/dead upstream domains                                      | ❌ removed |
+| MovieBox    | Private APK  | all mirror hosts return `441 miss token` at runtime                    | ❌ removed |
 
-All three providers are verified to return playable streams. MovieBox, ShowBox and UHDMovies were
-removed because their upstream APIs / keys / proxies could not be resolved at runtime.
+All six active providers are verified to return playable streams (Inception / 13 Reasons Why, tested locally
+with curl + Node from the developer's network).
+
+### What distinguishes each
+
+- **111477 / 4KHDHub / HDHub4u** — direct MP4/MKV download hosts, quality labelled by file name.
+- **Videasy** — HLS (`.m3u8`) with 2160p/1080p/720p/480p variants and built-in subtitle tracks.
+  Encrypted payload with a custom PRNG (`mvm1` magic header) ported from the player's JS.
+- **Castle** — HLS with `auth_key` (expiring), released with multi-language audio per title
+  (English / Tamil / Hindi / OST etc.) and clean episode metadata for TV.
+- **ShowBox** — HLS + ORG-dir MP4s via a FebBox share listing. Requires **your own FebBox `ui` cookie**
+  (see [Configuration](#configuration)).
 
 ---
 
@@ -34,11 +49,12 @@ removed because their upstream APIs / keys / proxies could not be resolved at ru
 2. In [Vercel](https://vercel.com) → **New Project** → import the repo.
 3. Framework preset: **Other** (it's a Node.js server). Build command: none.
    Install command: `npm install`. Start command: none needed (`vercel.json` already routes to `server.js`).
-4. Set the environment variable below (see **Environment variables**).
+4. Set the environment variables below (see **Environment variables**).
 5. Deploy → you get a URL like `https://lovepeacekarma-<hash>.vercel.app`.
 
 **Option B — locally (for testing):**
 ```bash
+cp .env.example .env    # edit if you want ShowBox enabled
 npm install
 node server.js
 # addon is now at http://localhost:3000/manifest.json
@@ -69,18 +85,19 @@ Steps in the Stremio app:
 2. Select the **LovePeaceKarma** catalog (it uses TMDB search).
 3. Type a title (e.g. *Inception*) → results load.
 4. Open the movie or episode → **"Choose stream"**.
-5. Pick any `111477` / `4KHDHub` / `HDHub4u` link (quality shown in the name, e.g. `2160p`).
+5. Pick any provider link (quality/language shown in the name, e.g. `2160p` / `Tamil` / `720p`).
 
 ---
 
 ## Configuration
 
 The addon is configurable via environment variables (set them on Vercel under
-**Project → Settings → Environment Variables**).
+**Project → Settings → Environment Variables**, or in `.env` locally).
 
 | Variable | Purpose |
 |----------|---------|
 | `TMDB_API_KEY` | TMDB API key (a public demo key is bundled; provide your own for higher limits) |
+| `SHOWBOX_UI_COOKIE` | **Required for ShowBox.** Your personal FebBox `ui` cookie value (JWT). Skip to disable ShowBox silently. |
 | `HDHUB4U_PROXY_URL` | Optional proxy to route HDHub4u requests through (e.g. ScraperAPI) |
 | `PROVIDER_111477_BASE_URL` | Override the 111477 file-host base URL |
 | `DEBUG` | `true` for verbose per-provider logging |
@@ -93,6 +110,19 @@ Provider enable/disable toggles (set to `false` to turn a provider off):
 | `ENABLE_111477_PROVIDER` | on | 111477 file host |
 | `ENABLE_4KHDHUB_PROVIDER` | on | 4KHDHub |
 | `ENABLE_HDHUB4U_PROVIDER` | on | HDHub4u |
+| `ENABLE_VIDEASY_PROVIDER` | on | Videasy |
+| `ENABLE_CASTLE_PROVIDER` | on | Castle |
+| `ENABLE_SHOWBOX_PROVIDER` | on | ShowBox (still skipped when no cookie set) |
+
+### Getting a FebBox `ui` cookie for ShowBox
+
+1. Open https://www.febbox.com and log in (any login method works).
+2. DevTools → Application (Chrome) / Storage (Firefox) → Cookies → `https://www.febbox.com`.
+3. Copy the **`ui`** cookie's value (starts with `eyJ…`, a JWT that decodes to `{uid, token}`).
+   Current shape: `ui=<JWT>` — the provider normalises both forms.
+4. Set it as `SHOWBOX_UI_COOKIE` in the addon environment. Cookie effectively lasts ~1 year
+   (`exp` field) but FebBox rotates it on account activity; if you notice ShowBox returning
+   no streams while other providers do, refresh the cookie.
 
 ---
 
@@ -106,7 +136,10 @@ Provider enable/disable toggles (set to `false` to turn a provider off):
 ├── providers/
 │   ├── 111477.js     # Scrapes https://a.111477.xyz file listings
 │   ├── 4khdhub.js    # Scrapes 4KHDHub + resolves HubCloud direct links
-│   └── hdhub4u.js    # Scrapes HDHub4u (HubCloud/Pixeldrain/etc.)
+│   ├── hdhub4u.js    # Scrapes HDHub4u (HubCloud/Pixeldrain/etc.)
+│   ├── videasy.js    # videasy / api.speedracelight.com encrypted m3u8 extractor
+│   ├── castle.js     # api.hlowb.com AES-128-CBC film-api, multi-language HLS
+│   └── showbox.js    # FebBox-share direct files (requires user `ui` cookie)
 ├── utils/
 │   ├── cache.js      # In-memory + file cache
 │   ├── linkResolver.js
@@ -119,8 +152,10 @@ Provider enable/disable toggles (set to `false` to turn a provider off):
 ## Development / testing
 
 ```bash
+cp .env.example .env
+# put your FebBox ui cookie in SHOWBOX_UI_COOKIE to enable ShowBox
 npm install
-npm test          # runs the provider smoke test (Inception, TMDB 27205)
+npm test          # runs the provider smoke test (Inception + 13 Reasons Why)
 node server.js    # start local server on :3000
 ```
 
