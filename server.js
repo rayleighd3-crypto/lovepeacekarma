@@ -119,13 +119,13 @@ function renderPage(prefill) {
 <h1>LovePeaceKarma</h1>
 <p class="sub">Direct HTTP streams from the sources you select. Metadata from TMDB.</p>
 <form id="f">
-  <div class="box" id="cookieBlock">
+  <div class="box" id="febBoxBox">
     <label><b>FebBox cookie <span id="ckTag" style="color:#8e24aa">— needed only for ShowBox</span></b></label>
     <p class="sub" style="margin:6px 0 10px">ShowBox streams come from FebBox and need your own cookie (each FebBox account gets 100GB/month before speeds are throttled). Log in to <a href="https://www.febbox.com" target="_blank">febbox.com</a>, open DevTools (F12) → Application → Cookies, copy the value of <code>ui</code>, and paste it below. Leave it blank if you don't want ShowBox.</p>
-    <input type="text" id="cookie" value="${cookieVal}" placeholder="eyJhbG...NiIs...  (the ui= cookie value)">
-    <div class="ok" id="cookieOkMsg">✓ Cookie looks valid.</div>
-    <div class="err" id="cookieErr">This doesn't look like a FebBox cookie — it must be a JWT (three dot-separated parts) that hasn't expired.</div>
-    <div class="warn" id="cookieWarn">ShowBox is selected but no valid cookie was entered — ShowBox will fail or be skipped until you paste a good one.</div>
+    <input type="text" id="fbToken" value="${cookieVal}" placeholder="eyJhbG...NiIs...  (the ui= cookie value)">
+    <div class="ok" id="msgGood">✓ Cookie looks valid.</div>
+    <div class="err" id="msgBad">This doesn't look like a FebBox cookie — it must be a JWT (three dot-separated parts) that hasn't expired.</div>
+    <div class="warn" id="msgWarn">ShowBox is selected but no valid cookie was entered — ShowBox will fail or be skipped until you paste a good one.</div>
   </div>
   <h3 style="margin-bottom:10px">Choose your sources</h3>
   <div id="provs">
@@ -138,15 +138,15 @@ function renderPage(prefill) {
   <button type="submit" id="installBtn" disabled>Select at least one source</button>
   <div class="urlout" id="urlout"></div>
   <p class="sub" id="finalHint" style="display:none;margin-top:8px">Copy the URL above and paste it into Stremio → Addons → Add URL.</p>
-  <p class="stamp">configure build: cookie-box-always-visible-2026-09-19c</p>
+  <p class="stamp">configure build: cookie-box-always-visible-2026-09-19d</p>
 </form>
 <script>
   const boxes=[...document.querySelectorAll('input[name=providers]')];
-  const cookieBlock=document.getElementById('cookieBlock');
-  const cookieInput=document.getElementById('cookie');
-  const cookieErr=document.getElementById('cookieErr');
-  const cookieOkMsg=document.getElementById('cookieOkMsg');
-  const cookieWarn=document.getElementById('cookieWarn');
+  const febBoxBox=document.getElementById('febBoxBox');
+  const fbTokenInput=document.getElementById('fbToken');
+  const msgBad=document.getElementById('msgBad');
+  const msgGood=document.getElementById('msgGood');
+  const msgWarn=document.getElementById('msgWarn');
   const btn=document.getElementById('installBtn');
   const out=document.getElementById('urlout');
   const hint=document.getElementById('finalHint');
@@ -158,22 +158,22 @@ function renderPage(prefill) {
     // The cookie box is ALWAYS on the page (rendered above the source list, never JS-gated).
     const tag=document.getElementById('ckTag');
     if(tag) tag.textContent=showbox?'(required — ShowBox is selected)':'— needed only for ShowBox';
-    const has=cookieInput.value.trim().length>0;
-    const valid=isJwt(cookieInput.value);
-    cookieErr.style.display=(has&&!valid)?'block':'none';
-    cookieOkMsg.style.display=valid?'block':'none';
-    cookieWarn.style.display=(showbox&&!valid)?'block':'none';
+    const has=fbTokenInput.value.trim().length>0;
+    const valid=isJwt(fbTokenInput.value);
+    msgBad.style.display=(has&&!valid)?'block':'none';
+    msgGood.style.display=valid?'block':'none';
+    msgWarn.style.display=(showbox&&!valid)?'block':'none';
     btn.disabled=!any;
     btn.textContent=any?('Install with '+boxes.filter(b=>b.checked).length+' source(s)'):'Select at least one source';
   }
   boxes.forEach(b=>b.addEventListener('change',()=>{b.closest('.provider').classList.toggle('checked',b.checked);refresh()}));
-  cookieInput.addEventListener('input',refresh);
+  fbTokenInput.addEventListener('input',refresh);
   document.getElementById('f').addEventListener('submit',e=>{
     e.preventDefault();
     const configParts=[];
     const picks=boxes.filter(b=>b.checked).map(b=>b.value);
     if(picks.length)configParts.push('providers='+picks.join(','));
-    if(document.querySelector('input[value=showbox]').checked)configParts.push('cookie='+encodeURIComponent(cookieInput.value.trim()));
+    if(document.querySelector('input[value=showbox]').checked)configParts.push('cookie='+encodeURIComponent(fbTokenInput.value.trim()));
     const url=location.origin+'/manifest.json?'+configParts.join('&');
     out.textContent=url;
     out.style.display='block';
