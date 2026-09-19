@@ -95,10 +95,10 @@ const PAGE = `<!doctype html>
       <span><b>${p.label}</b><small>${p.desc}</small></span>
     </label>`).join('')}
   </div>
-  <div class="cookie" id="cookieBlock" style="display:none;margin-top:16px">
-    <label><b>FebBox cookie (required for ShowBox)</b></label>
-    <p class="sub" style="margin:6px 0 10px">Log in to <a href="https://www.febbox.com" target="_blank">febbox.com</a>, open DevTools → Application → Cookies, copy the value of <code>ui</code> and paste it below.</p>
-    <input type="text" id="cookie" placeholder="eyJhbGciOiJIUzI1NiIs... (the ui= cookie value)">
+  <div class="cookie" id="cookieBlock" style="margin-top:16px">
+    <label><b>FebBox cookie <span id="ckTag" style="color:#8e24aa">(used only when ShowBox is selected)</span></b></label>
+    <p class="sub" style="margin:6px 0 10px">Log in to <a href="https://www.febbox.com" target="_blank">febbox.com</a>, open DevTools → Application → Cookies, copy the value of <code>ui</code> and paste it below. Leave empty if you did not pick ShowBox.</p>
+    <input type="text" id="cookie" placeholder="eyJhbG...NiIs... (the ui= cookie value)">
     <div class="err" id="cookieErr">Please enter a valid FebBox cookie (a JWT — three dots-separated base64 parts, not expired).</div>
   </div>
   <button type="submit" id="installBtn" disabled>Select at least one source</button>
@@ -117,13 +117,17 @@ const PAGE = `<!doctype html>
   function refresh(){
     const any=boxes.some(b=>b.checked);
     const showbox=document.querySelector('input[value=showbox]').checked;
-    cookieBlock.style.display=showbox?'block':'none';
+    // cookie box is ALWAYS visible (never JS-gated) — only its emphasis changes
+    cookieBlock.style.borderLeft=showbox?'4px solid #8e24aa':'none';
+    cookieBlock.style.paddingLeft=showbox?'12px':'0';
+    const tag=document.getElementById('ckTag');
+    if(tag) tag.textContent=showbox?'(required — ShowBox is selected)':'(used only when ShowBox is selected)';
     const ckOk=!showbox||isJwt(cookieInput.value);
     cookieErr.style.display=(showbox&&cookieInput.value&&!ckOk)?'block':'none';
     btn.disabled=!(any&&ckOk);
     btn.textContent=!any?'Select at least one source':(showbox&&!ckOk?'Enter a valid FebBox cookie to continue':(any&&showbox?'Install with '+boxes.filter(b=>b.checked).length+' source(s)':'Install'));
   }
-  boxes.forEach(b=>b.addEventListener('change',()=>{b.closest('.provider').classList.toggle('checked',b.checked);refresh()}));
+  boxes.forEach(b=>b.addEventListener('change',()=>{b.closest('.provider').classList.toggle('checked',b.checked);refresh();if(b.checked&&b.value==='showbox'){try{cookieBlock.scrollIntoView({behavior:'smooth',block:'center'})}catch(e){}}}));
   cookieInput.addEventListener('input',refresh);
   document.getElementById('f').addEventListener('submit',e=>{
     e.preventDefault();
@@ -143,6 +147,8 @@ const PAGE = `<!doctype html>
 // Landing / configure page
 app.get(['/', '/configure'], (req, res) => {
   res.set('Content-Type', 'text/html; charset=utf-8');
+  // Never let browsers or the CDN serve a stale configure page
+  res.set('Cache-Control', 'no-store, no-cache, must-revalidate');
   res.send(PAGE);
 });
 
