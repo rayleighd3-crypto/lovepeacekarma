@@ -81,12 +81,24 @@ const PAGE = `<!doctype html>
   button:disabled{background:#bbb;cursor:not-allowed}
   .urlout{margin-top:16px;word-break:break-all;background:#f4f4f4;padding:10px;border-radius:6px;display:none}
   .err{color:#c62828;display:none;margin-top:10px}
+  .ok{color:#2e7d32;display:none;margin-top:8px}
+  .warn{color:#b26a00;display:none;margin-top:8px}
+  .box{border:1px solid #e3e3e3;border-radius:8px;padding:14px;margin-bottom:18px;background:#fcfbfd}
+  .stamp{color:#aaa;font-size:12px;margin-top:14px}
   label,.cookie{font-size:14px}
 </style></head>
 <body>
 <h1>LovePeaceKarma</h1>
 <p class="sub">Direct HTTP streams from the sources you select. Metadata from TMDB.</p>
 <form id="f">
+  <div class="box" id="cookieBlock">
+    <label><b>FebBox cookie <span id="ckTag" style="color:#8e24aa">— needed only for ShowBox</span></b></label>
+    <p class="sub" style="margin:6px 0 10px">ShowBox streams come from FebBox and need your own cookie (each FebBox account gets 100GB/month before speeds are throttled). Log in to <a href="https://www.febbox.com" target="_blank">febbox.com</a>, open DevTools (F12) → Application → Cookies, copy the value of <code>ui</code>, and paste it below. Leave it blank if you don't want ShowBox.</p>
+    <input type="text" id="cookie" placeholder="eyJhbG...NiIs...  (the ui= cookie value)">
+    <div class="ok" id="cookieOkMsg">✓ Cookie looks valid.</div>
+    <div class="err" id="cookieErr">This doesn't look like a FebBox cookie — it must be a JWT (three dot-separated parts) that hasn't expired.</div>
+    <div class="warn" id="cookieWarn">ShowBox is selected but no valid cookie was entered — ShowBox will fail or be skipped until you paste a good one.</div>
+  </div>
   <h3 style="margin-bottom:10px">Choose your sources</h3>
   <div id="provs">
     ${ALL_PROVIDERS.map(p => `
@@ -95,21 +107,18 @@ const PAGE = `<!doctype html>
       <span><b>${p.label}</b><small>${p.desc}</small></span>
     </label>`).join('')}
   </div>
-  <div class="cookie" id="cookieBlock" style="margin-top:16px">
-    <label><b>FebBox cookie <span id="ckTag" style="color:#8e24aa">(used only when ShowBox is selected)</span></b></label>
-    <p class="sub" style="margin:6px 0 10px">Log in to <a href="https://www.febbox.com" target="_blank">febbox.com</a>, open DevTools → Application → Cookies, copy the value of <code>ui</code> and paste it below. Leave empty if you did not pick ShowBox.</p>
-    <input type="text" id="cookie" placeholder="eyJhbG...NiIs... (the ui= cookie value)">
-    <div class="err" id="cookieErr">Please enter a valid FebBox cookie (a JWT — three dots-separated base64 parts, not expired).</div>
-  </div>
   <button type="submit" id="installBtn" disabled>Select at least one source</button>
   <div class="urlout" id="urlout"></div>
   <p class="sub" id="finalHint" style="display:none;margin-top:8px">Copy the URL above and paste it into Stremio → Addons → Add URL.</p>
+  <p class="stamp">configure build: cookie-box-always-visible-2026-09-19b</p>
 </form>
 <script>
   const boxes=[...document.querySelectorAll('input[name=providers]')];
   const cookieBlock=document.getElementById('cookieBlock');
   const cookieInput=document.getElementById('cookie');
   const cookieErr=document.getElementById('cookieErr');
+  const cookieOkMsg=document.getElementById('cookieOkMsg');
+  const cookieWarn=document.getElementById('cookieWarn');
   const btn=document.getElementById('installBtn');
   const out=document.getElementById('urlout');
   const hint=document.getElementById('finalHint');
@@ -117,17 +126,18 @@ const PAGE = `<!doctype html>
   function refresh(){
     const any=boxes.some(b=>b.checked);
     const showbox=document.querySelector('input[value=showbox]').checked;
-    // cookie box is ALWAYS visible (never JS-gated) — only its emphasis changes
-    cookieBlock.style.borderLeft=showbox?'4px solid #8e24aa':'none';
-    cookieBlock.style.paddingLeft=showbox?'12px':'0';
+    // The cookie box is ALWAYS on the page (rendered above the source list, never JS-gated).
     const tag=document.getElementById('ckTag');
-    if(tag) tag.textContent=showbox?'(required — ShowBox is selected)':'(used only when ShowBox is selected)';
-    const ckOk=!showbox||isJwt(cookieInput.value);
-    cookieErr.style.display=(showbox&&cookieInput.value&&!ckOk)?'block':'none';
-    btn.disabled=!(any&&ckOk);
-    btn.textContent=!any?'Select at least one source':(showbox&&!ckOk?'Enter a valid FebBox cookie to continue':(any&&showbox?'Install with '+boxes.filter(b=>b.checked).length+' source(s)':'Install'));
+    if(tag) tag.textContent=showbox?'(required — ShowBox is selected)':'— needed only for ShowBox';
+    const has=cookieInput.value.trim().length>0;
+    const valid=isJwt(cookieInput.value);
+    cookieErr.style.display=(has&&!valid)?'block':'none';
+    cookieOkMsg.style.display=valid?'block':'none';
+    cookieWarn.style.display=(showbox&&!valid)?'block':'none';
+    btn.disabled=!any;
+    btn.textContent=any?('Install with '+boxes.filter(b=>b.checked).length+' source(s)'):'Select at least one source';
   }
-  boxes.forEach(b=>b.addEventListener('change',()=>{b.closest('.provider').classList.toggle('checked',b.checked);refresh();if(b.checked&&b.value==='showbox'){try{window.scrollTo({top:Math.max(0,cookieBlock.offsetTop-40),behavior:'auto'})}catch(e){}}}));
+  boxes.forEach(b=>b.addEventListener('change',()=>{b.closest('.provider').classList.toggle('checked',b.checked);refresh()}));
   cookieInput.addEventListener('input',refresh);
   document.getElementById('f').addEventListener('submit',e=>{
     e.preventDefault();
