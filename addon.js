@@ -5,16 +5,44 @@ const { resolveTmdb, TMDB_API_KEY } = require('./utils/tmdb');
 
 const manifest = require('./manifest.json');
 
-// Provider enable/disable flags (default all on)
-const ENABLE = (name) => process.env[`ENABLE_${name}_PROVIDER`] !== 'false';
+// Provider registry: all available sources a user can pick during installation
+const ALL_PROVIDERS = [
+  { key: '4khdhub', envKey: '4KHDHUB', label: '4KHDHub' },
+  { key: 'hdhub4u', envKey: 'HDHUB4U', label: 'HDHub4u' },
+  { key: '111477', envKey: '111477', label: '111477' },
+  { key: 'videasy', envKey: 'VIDEASY', label: 'Videasy' },
+  { key: 'castle', envKey: 'CASTLE', label: 'Castle' },
+  { key: 'showbox', envKey: 'SHOWBOX', label: 'ShowBox' },
+];
 
-const PROVIDERS = [];
-if (ENABLE('4KHDHUB')) PROVIDERS.push({ key: '4khdhub', label: '4KHDHub' });
-if (ENABLE('HDHUB4U')) PROVIDERS.push({ key: 'hdhub4u', label: 'HDHub4u' });
-if (ENABLE('111477')) PROVIDERS.push({ key: '111477', label: '111477' });
-if (ENABLE('VIDEASY')) PROVIDERS.push({ key: 'videasy', label: 'Videasy' });
-if (ENABLE('CASTLE')) PROVIDERS.push({ key: 'castle', label: 'Castle' });
-if (ENABLE('SHOWBOX')) PROVIDERS.push({ key: 'showbox', label: 'ShowBox' });
+// Server-side fallback list (env). Per-user config takes priority.
+function serverEnabledKeys() {
+  const list = ALL_PROVIDERS.filter(p => process.env[`ENABLE_${p.envKey}_PROVIDER`] !== 'false');
+  // ShowBox via server env requires a server cookie; only enable it if one is set
+  const showbox = list.find(p => p.key === 'showbox');
+  if (showbox && !process.env.SHOWBOX_UI_COOKIE) {
+    const without = list.filter(p => p.key !== 'showbox');
+    return without.map(p => p.key);
+  }
+  return list.map(p => p.key);
+}
+const SERVER_DEFAULT_KEYS = serverEnabledKeys();
+
+// Resolve which providers a given request should use
+function providersForRequest(config = {}) {
+  let selected;
+  if (Array.isArray(config.providers) && config.providers.length > 0) {
+    selected = config.providers;
+  } else if (typeof config.providers === 'string' && config.providers.length > 0) {
+    selected = config.providers.split(',').map(k => k.trim()).filter(Boolean);
+  } else {
+    selected = SERVER_DEFAULT_KEYS;
+  }
+  const valid = new Set(ALL_PROVIDERS.map(p => p.key));
+  return ALL_PROVIDERS
+    .filter(p => selected.includes(p.key) && valid.has(p.key))
+    .filter(p => p.key !== 'showbox' || !!config.cookie || !!process.env.SHOWBOX_UI_COOKIE);
+}
 
 // Lazy-require providers (avoid loading heavyweight deps on /manifest)
 function providerFns(key) {
@@ -39,7 +67,7 @@ function withTimeout(promise, ms) {
   });
 }
 
-async function runProvider(p, { tmdbId, mediaType, season, episode }) {
+async function runProvider(p, { tmdbId, mediaType, season, episode, requestConfig = {} }) {
   try {
     const fns = providerFns(p.key);
     if (!fns) return [];
@@ -60,7 +88,7 @@ async function runProvider(p, { tmdbId, mediaType, season, episode }) {
       case 'castle':
         return await fns.getCastleStreams(tmdbId, mediaType, season, episode);
       case 'showbox':
-        return await fns.getShowBoxStreams(tmdbId, mediaType, season, episode);
+        return await fns.getShowBoxStreams(tmdbId, mediaType, season, episode, requestConfig);
       default:
         return [];
     }
@@ -107,7 +135,7 @@ builder.defineCatalogHandler(async ({ type, id, extra }) => {
   return { metas };
 });
 
-builder.defineStreamHandler(async ({ type, id }) => {
+builder.defineStreamHandler(async ({ type, id, extra = {}, config = {} }) => {
   // Normalize id ("tmdb:123", "ttXXXX", "123")
   let rawId = id;
   if (rawId.startsWith('tmdb:')) rawId = rawId.slice(5);
@@ -124,10 +152,15 @@ builder.defineStreamHandler(async ({ type, id }) => {
     rawId = numbers[0];
   }
 
-  console.log(`[addon] stream request type=${type} id=${rawId}${season ? ` S${season}E${episode}` : ''} providers=${PROVIDERS.map(p => p.key).join(',')}`);
+  // Resolve request-scoped config: SDK `config` (from path/query), the cookie extra,
+  // and legacy global set by server.js middleware.
+  const reqConfig = { ...config, ...(extra && extra.cookie ? { cookie: extra.cookie } : {}), ...(global.currentRequestConfig || {}) };
+  const activeProviders = providersForRequest(reqConfig);
 
-  const jobs = PROVIDERS.map(p => withTimeout(
-    runProvider(p, { tmdbId: rawId, mediaType, season, episode }),
+  console.log(`[addon] stream request type=${type} id=${rawId}${season ? ` S${season}E${episode}` : ''} providers=${activeProviders.map(p => p.key).join(',')}`);
+
+  const jobs = activeProviders.map(p => withTimeout(
+    runProvider(p, { tmdbId: rawId, mediaType, season, episode, requestConfig: reqConfig }),
     parseInt(process.env.PROVIDER_TIMEOUT_MS || '25000', 10)
   ));
 

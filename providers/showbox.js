@@ -23,8 +23,9 @@ const log = DEBUG ? console.log : () => {};
 const logWarn = DEBUG ? console.warn : () => {};
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-function getUiCookie() {
-  const raw = process.env.SHOWBOX_UI_COOKIE || '';
+function getUiCookie(requestConfig = {}) {
+  // Per-user cookie (from the addon configure URL) takes priority over the server env
+  let raw = requestConfig.cookie || process.env.SHOWBOX_UI_COOKIE || '';
   if (!raw) return null;
   // Accept "eyJ..." (jwt itself) or "ui=eyJ..." or "ui%3D..." forms
   let t = String(raw).trim();
@@ -70,12 +71,13 @@ function qualityLabel(q) {
   }
 }
 
-async function getShowBoxStreams(tmdbId, type = 'movie', season = null, episode = null) {
+async function getShowBoxStreams(tmdbId, type = 'movie', season = null, episode = null, requestConfig = {}) {
   const mediaType = type === 'series' || type === 'tv' ? 'tv' : 'movie';
-  const cookie = getUiCookie();
+  const cookie = getUiCookie(requestConfig);
   if (!cookie) {
-    // Gracefully emit nothing when no user cookie is set
-    log('[showbox] no SHOWBOX_UI_COOKIE configured - skipping');
+    // Unreachable in the normal install flow (configure page enforces the cookie),
+    // but guard anyway so a misconfigured install degrades to "no streams", not a crash.
+    log('[showbox] no febbox ui cookie available - returning no streams');
     return [];
   }
   const cacheKey = `streams_${mediaType}_${tmdbId}${season ? `_s${season}e${episode}` : ''}`;
