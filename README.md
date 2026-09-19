@@ -22,8 +22,6 @@ aggregated across all enabled providers. Results are de-duplicated and sorted by
 | **Videasy** | Multi-server | `api.speedracelight.com` (seed + `mvm1` PRNG decrypt)                  | ✅ Active |
 | **Castle**  | App API      | `api.hlowb.com` (AES-128-CBC film-api, multi-language)                 | ✅ Active |
 | **ShowBox** | FebBox share | `id-mapping-api-showbox-proxy.hf.space` + `febbox.com`                 | ✅ Active (needs own `ui` cookie) |
-| UHDMovies   | WordPress    | TLS-blocked/dead upstream domains                                      | ❌ removed |
-| MovieBox    | Private APK  | all mirror hosts return `441 miss token` at runtime                    | ❌ removed |
 
 All six active providers are verified to return playable streams (Inception / 13 Reasons Why, tested locally
 with curl + Node from the developer's network).
