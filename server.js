@@ -127,7 +127,7 @@ const PAGE = `<!doctype html>
     btn.disabled=!(any&&ckOk);
     btn.textContent=!any?'Select at least one source':(showbox&&!ckOk?'Enter a valid FebBox cookie to continue':(any&&showbox?'Install with '+boxes.filter(b=>b.checked).length+' source(s)':'Install'));
   }
-  boxes.forEach(b=>b.addEventListener('change',()=>{b.closest('.provider').classList.toggle('checked',b.checked);refresh();if(b.checked&&b.value==='showbox'){try{cookieBlock.scrollIntoView({behavior:'smooth',block:'center'})}catch(e){}}}));
+  boxes.forEach(b=>b.addEventListener('change',()=>{b.closest('.provider').classList.toggle('checked',b.checked);refresh();if(b.checked&&b.value==='showbox'){try{window.scrollTo({top:Math.max(0,cookieBlock.offsetTop-40),behavior:'auto'})}catch(e){}}}));
   cookieInput.addEventListener('input',refresh);
   document.getElementById('f').addEventListener('submit',e=>{
     e.preventDefault();
