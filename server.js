@@ -55,16 +55,44 @@ function configFromRequest(req) {
   return out;
 }
 
+// Also accept config as PATH segments, which is what Stremio uses when the user
+// presses "Configure" on an installed addon: /providers=showbox/cookie=eyJ.../configure
+function configFromPath(req) {
+  const out = {};
+  const segs = String(req.path || '').split('/').filter(Boolean);
+  for (const seg of segs) {
+    const i = seg.indexOf('=');
+    if (i < 1) continue;
+    const k = seg.slice(0, i);
+    let v = seg.slice(i + 1);
+    try { v = decodeURIComponent(v); } catch (e) {}
+    out[k] = v;
+  }
+  return out;
+}
+
 // Populate request-scoped config
 app.use((req, res, next) => {
-  const config = configFromRequest(req);
+  const config = Object.assign({}, configFromRequest(req), configFromPath(req));
   global.currentRequestConfig = config;
   req.nuvioConfig = config;
   next();
 });
 
 // ---------- Configure page + install flow ----------
-const PAGE = `<!doctype html>
+function esc(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+function renderPage(prefill) {
+  prefill = prefill || {};
+  const VALID_KEYS = ALL_PROVIDERS.map(p => p.key);
+  const picked = (Array.isArray(prefill.providers) ? prefill.providers : String(prefill.providers || '').split(','))
+    .map(s => String(s).trim().toLowerCase()).filter(k => VALID_KEYS.includes(k));
+  const cookieVal = esc(prefill.cookie || '');
+  return `<!doctype html>
 <html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>LovePeaceKarma — Configure</title>
 <style>
@@ -94,7 +122,7 @@ const PAGE = `<!doctype html>
   <div class="box" id="cookieBlock">
     <label><b>FebBox cookie <span id="ckTag" style="color:#8e24aa">— needed only for ShowBox</span></b></label>
     <p class="sub" style="margin:6px 0 10px">ShowBox streams come from FebBox and need your own cookie (each FebBox account gets 100GB/month before speeds are throttled). Log in to <a href="https://www.febbox.com" target="_blank">febbox.com</a>, open DevTools (F12) → Application → Cookies, copy the value of <code>ui</code>, and paste it below. Leave it blank if you don't want ShowBox.</p>
-    <input type="text" id="cookie" placeholder="eyJhbG...NiIs...  (the ui= cookie value)">
+    <input type="text" id="cookie" value="${cookieVal}" placeholder="eyJhbG...NiIs...  (the ui= cookie value)">
     <div class="ok" id="cookieOkMsg">✓ Cookie looks valid.</div>
     <div class="err" id="cookieErr">This doesn't look like a FebBox cookie — it must be a JWT (three dot-separated parts) that hasn't expired.</div>
     <div class="warn" id="cookieWarn">ShowBox is selected but no valid cookie was entered — ShowBox will fail or be skipped until you paste a good one.</div>
@@ -103,14 +131,14 @@ const PAGE = `<!doctype html>
   <div id="provs">
     ${ALL_PROVIDERS.map(p => `
     <label class="provider" data-key="${p.key}">
-      <input type="checkbox" name="providers" value="${p.key}">
+      <input type="checkbox" name="providers" value="${p.key}"${picked.includes(p.key) ? ' checked' : ''}>
       <span><b>${p.label}</b><small>${p.desc}</small></span>
     </label>`).join('')}
   </div>
   <button type="submit" id="installBtn" disabled>Select at least one source</button>
   <div class="urlout" id="urlout"></div>
   <p class="sub" id="finalHint" style="display:none;margin-top:8px">Copy the URL above and paste it into Stremio → Addons → Add URL.</p>
-  <p class="stamp">configure build: cookie-box-always-visible-2026-09-19b</p>
+  <p class="stamp">configure build: cookie-box-always-visible-2026-09-19c</p>
 </form>
 <script>
   const boxes=[...document.querySelectorAll('input[name=providers]')];
@@ -124,6 +152,7 @@ const PAGE = `<!doctype html>
   const hint=document.getElementById('finalHint');
   const isJwt=t=>{if(!t)return false;t=t.trim();if(t.toLowerCase().startsWith('ui='))t=t.slice(3);try{t=decodeURIComponent(t)}catch(e){}if(t.toLowerCase().startsWith('ui='))t.slice(3);const p=t.split('.');if(p.length!==3)return false;try{JSON.parse(atob(p[0].replace(/-/g,'+').replace(/_/g,'/')));JSON.parse(atob(p[1].replace(/-/g,'+').replace(/_/g,'/')));return true}catch(e){return false}};
   function refresh(){
+    boxes.forEach(b=>b.closest('.provider').classList.toggle('checked',b.checked));
     const any=boxes.some(b=>b.checked);
     const showbox=document.querySelector('input[value=showbox]').checked;
     // The cookie box is ALWAYS on the page (rendered above the source list, never JS-gated).
@@ -153,14 +182,18 @@ const PAGE = `<!doctype html>
   refresh();
 </script>
 </body></html>`;
+}
 
-// Landing / configure page
-app.get(['/', '/configure'], (req, res) => {
+// Landing / configure page — matches "/", "/configure", and Stremio's
+// path-segment form "/providers=showbox/cookie=eyJ.../configure"
+function serveConfigurePage(req, res) {
   res.set('Content-Type', 'text/html; charset=utf-8');
   // Never let browsers or the CDN serve a stale configure page
   res.set('Cache-Control', 'no-store, no-cache, must-revalidate');
-  res.send(PAGE);
-});
+  res.send(renderPage(req.nuvioConfig || {}));
+}
+app.get('/', serveConfigurePage);
+app.get(/^\/(?:.*\/)?configure\/?$/, serveConfigurePage);
 
 // Bare manifest (no config) -> force the configure page instead of serving a manifest
 const addonInterface = builder.getInterface();
