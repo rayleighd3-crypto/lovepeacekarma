@@ -24,6 +24,16 @@
  *
  * Three OTT variants are queried in parallel (Netflix / Prime Video / Hotstar);
  * whichever answer are returned as separate streams.
+ *
+ * DEPLOYMENT CAVEAT (verified 2026-09-20): the NewTV API host (tv.imgcdn.kim) sits
+ * behind Cloudflare, which answers HTTP 403 "Page Not Found" to datacenter egress
+ * such as Vercel's - the same calls return 200 from a residential/Indian IP. Pinning
+ * the function region to bom1 did NOT help, and all three live mirrors hand out that
+ * same host (the other 21 in the pool are dead), so there is no alternate route.
+ * Effect: netmirror returns 0 streams on Vercel (failing in ~40ms) but works when the
+ * addon is self-hosted on a normal connection. Routing these calls through a proxy
+ * with a clean IP (e.g. the addon's own VPS) is the only fix; without one, treat
+ * netmirror as a self-host-only provider.
  */
 require('dotenv').config();
 const { resolveTmdb } = require('../utils/tmdb');
