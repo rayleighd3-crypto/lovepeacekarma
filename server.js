@@ -4,6 +4,7 @@ const cors = require('cors');
 const path = require('path');
 const { getRouter } = require('stremio-addon-sdk');
 const builder = require('./addon');
+const { isValidTmdbKey } = require('./utils/tmdb');
 
 const ALL_PROVIDERS = [
   { key: '4khdhub', label: '4KHDHub', desc: 'High-quality movies & TV (Google Drive hosts)' },
@@ -52,6 +53,13 @@ function configFromRequest(req) {
     if (keys.length) out.providers = keys;
   }
   if (q.region) out.region = String(q.region).toUpperCase();
+  // Optional user-supplied TMDB credential (v3 32-hex key or v4 JWT token)
+  const rawTmdb = q.tmdbKey || q.tmdbkey || q.tmdb;
+  if (rawTmdb) {
+    let t = String(rawTmdb).trim();
+    try { t = decodeURIComponent(t); } catch (e) {}
+    if (isValidTmdbKey(t)) out.tmdbKey = t;
+  }
   return out;
 }
 
@@ -74,6 +82,24 @@ function configFromPath(req) {
 // Populate request-scoped config
 app.use((req, res, next) => {
   const config = Object.assign({}, configFromRequest(req), configFromPath(req));
+  // Path segments arrive unvalidated: normalise/drop a bad TMDB credential so a
+  // malformed key can never reach the TMDB calls (it would 401 silently).
+  const rawTmdb = config.tmdbKey || config.tmdbkey || config.tmdb;
+  delete config.tmdbkey;
+  delete config.tmdb;
+  if (rawTmdb !== undefined) {
+    const t = String(rawTmdb).trim();
+    if (isValidTmdbKey(t)) config.tmdbKey = t; else delete config.tmdbKey;
+  }
+  // The stremio-addon-sdk router derives a catalog request's `extra` from
+  // `req.url.split('/').pop()` — which includes the query string — so any config
+  // param riding along (`?providers=...`, `?tmdbKey=...`) replaces the search
+  // term with garbage and returns an empty catalog. Config is already captured
+  // above (and reachable per-request), and routing only needs the path, so drop
+  // the query string for resource requests before the SDK router parses it.
+  if (req.query && Object.keys(req.query).length && /^\/(catalog|stream|meta|subtitles|addon_catalog)\//.test(req.path)) {
+    req.url = req.path;
+  }
   global.currentRequestConfig = config;
   req.nuvioConfig = config;
   next();
@@ -92,6 +118,7 @@ function renderPage(prefill) {
   const picked = (Array.isArray(prefill.providers) ? prefill.providers : String(prefill.providers || '').split(','))
     .map(s => String(s).trim().toLowerCase()).filter(k => VALID_KEYS.includes(k));
   const cookieVal = esc(prefill.cookie || '');
+  const tmdbVal = esc(prefill.tmdbKey || '');
   return `<!doctype html>
 <html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>LovePeaceKarma — Configure</title>
@@ -156,6 +183,13 @@ function renderPage(prefill) {
 <p class="sub">Direct HTTP streams from the sources you select. Metadata from TMDB.</p>
 <div class="card">
 <form id="f">
+  <div class="box" id="tmdbBox">
+    <label for="tmdbKey"><b>TMDB API key <span class="tag">— optional</span></b></label>
+    <p class="sub" style="margin:6px 0 10px">Catalog search and every source that resolves titles use TMDB. This addon ships with a shared key that is rate-limited — paste your own (free) to avoid "no streams" timeouts. Get one at <a href="https://www.themoviedb.org/settings/api" target="_blank" rel="noopener">themoviedb.org/settings/api</a> → API Key (v3 auth), a 32-character hex string. A v4 Read Access Token also works. Leave blank to use the shared key.</p>
+    <input type="text" id="tmdbKey" value="${tmdbVal}" placeholder="e.g. 439c478a771f35c05022f9feabcca01c" autocomplete="off" spellcheck="false">
+    <div class="ok" id="tmdbGood">✓ TMDB key looks valid — it will be used for search and title lookups.</div>
+    <div class="err" id="tmdbBad">That doesn't look like a TMDB key — v3 keys are 32 hex characters. Paste the "API Key (v3 auth)" value.</div>
+  </div>
   <div class="box" id="febBoxBox">
     <label for="fbToken"><b>FebBox cookie <span id="ckTag" class="tag">— needed only for ShowBox</span></b></label>
     <p class="sub" style="margin:6px 0 10px">ShowBox streams come from FebBox and need your own cookie (each FebBox account gets 100GB/month before speeds are throttled). Log in to <a href="https://www.febbox.com" target="_blank" rel="noopener">febbox.com</a>, open DevTools (F12) → Application → Cookies, copy the value of <code>ui</code>, and paste it below. Leave it blank if you don't want ShowBox.</p>
@@ -176,7 +210,7 @@ function renderPage(prefill) {
   <button type="submit" id="installBtn" disabled>Select at least one source</button>
   <div class="urlout" id="urlout"><span id="urltext"></span><button type="button" class="copybtn" id="copyBtn">Copy</button></div>
   <p class="sub" id="finalHint" style="display:none;margin-top:8px;margin-bottom:0">Copy the URL above and paste it into Stremio → Addons → Add URL.</p>
-  <p class="stamp">configure build: dark-premium-2026-09-20</p>
+  <p class="stamp">configure build: dark-premium-tmdb-key-2026-09-20</p>
 </form>
 </div>
 </div>
@@ -190,6 +224,13 @@ function renderPage(prefill) {
   const btn=document.getElementById('installBtn');
   const out=document.getElementById('urlout');
   const hint=document.getElementById('finalHint');
+  const tmdbInput=document.getElementById('tmdbKey');
+  const tmdbGood=document.getElementById('tmdbGood');
+  const tmdbBad=document.getElementById('tmdbBad');
+  // v3 key = 32 hex chars; v4 read access token = JWT
+  const isTmdbKey=t=>{t=(t||'').trim();if(!t)return false;
+    if(/^[0-9a-f]{32}$/i.test(t))return true;
+    return /^eyJ[A-Za-z0-9_-]*\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(t)};
   const isJwt=t=>{if(!t)return false;t=t.trim();if(t.toLowerCase().startsWith('ui='))t=t.slice(3);try{t=decodeURIComponent(t)}catch(e){}if(t.toLowerCase().startsWith('ui='))t.slice(3);const p=t.split('.');if(p.length!==3)return false;try{JSON.parse(atob(p[0].replace(/-/g,'+').replace(/_/g,'/')));JSON.parse(atob(p[1].replace(/-/g,'+').replace(/_/g,'/')));return true}catch(e){return false}};
   function refresh(){
     boxes.forEach(b=>b.closest('.provider').classList.toggle('checked',b.checked));
@@ -203,17 +244,25 @@ function renderPage(prefill) {
     msgBad.style.display=(has&&!valid)?'block':'none';
     msgGood.style.display=valid?'block':'none';
     msgWarn.style.display=(showbox&&!valid)?'block':'none';
+    // TMDB key is optional; only complain when something was actually typed
+    const thas=tmdbInput.value.trim().length>0;
+    const tvalid=isTmdbKey(tmdbInput.value);
+    tmdbBad.style.display=(thas&&!tvalid)?'block':'none';
+    tmdbGood.style.display=tvalid?'block':'none';
     btn.disabled=!any;
     btn.textContent=any?('Install with '+boxes.filter(b=>b.checked).length+' source(s)'):'Select at least one source';
   }
   boxes.forEach(b=>b.addEventListener('change',()=>{b.closest('.provider').classList.toggle('checked',b.checked);refresh()}));
   fbTokenInput.addEventListener('input',refresh);
+  tmdbInput.addEventListener('input',refresh);
   document.getElementById('f').addEventListener('submit',e=>{
     e.preventDefault();
     const configParts=[];
     const picks=boxes.filter(b=>b.checked).map(b=>b.value);
     if(picks.length)configParts.push('providers='+picks.join(','));
     if(document.querySelector('input[value=showbox]').checked)configParts.push('cookie='+encodeURIComponent(fbTokenInput.value.trim()));
+    const tk=tmdbInput.value.trim();
+    if(isTmdbKey(tk))configParts.push('tmdbKey='+encodeURIComponent(tk));
     const url=location.origin+'/manifest.json?'+configParts.join('&');
     document.getElementById('urltext').textContent=url;
     out.style.display='flex';
@@ -250,7 +299,9 @@ const addonInterface = builder.getInterface();
 const router = getRouter(addonInterface);
 app.use((req, res, next) => {
   const isManifest = req.path === '/manifest.json' || req.path.endsWith('/manifest.json');
-  const hasConfig = Object.keys(req.nuvioConfig || {}).length > 0;
+  // A TMDB key alone is not a usable install: without a provider/cookie choice
+  // the user would get server defaults, so keep sending them to the picker.
+  const hasConfig = Object.keys(req.nuvioConfig || {}).some(k => k !== 'tmdbKey');
   if (isManifest && !hasConfig) {
     return res.redirect('/configure');
   }

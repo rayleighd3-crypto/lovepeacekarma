@@ -1,7 +1,7 @@
 require('dotenv').config();
 const { addonBuilder } = require('stremio-addon-sdk');
 const axios = require('axios');
-const { resolveTmdb, TMDB_API_KEY } = require('./utils/tmdb');
+const { resolveTmdb, TMDB_API_KEY, tmdbRequest, withTmdbKey } = require('./utils/tmdb');
 
 const manifest = require('./manifest.json');
 
@@ -99,14 +99,15 @@ async function runProvider(p, { tmdbId, mediaType, season, episode, requestConfi
 }
 
 // Catalog: TMDB search
-async function searchCatalog(type, search) {
+async function searchCatalog(type, search, tmdbKey = null) {
   try {
     const mediaType = type === 'series' ? 'tv' : 'movie';
     // If no search term, return popular/trending rows so the Discover catalog isn't empty.
-    const url = search
-      ? `https://api.themoviedb.org/3/search/${mediaType}?api_key=${TMDB_API_KEY}&query=${encodeURIComponent(search)}&page=1`
-      : `https://api.themoviedb.org/3/${mediaType}/popular?api_key=${TMDB_API_KEY}&language=en-US&page=1`;
-    const res = await axios.get(url, { timeout: 10000 });
+    const path = search
+      ? `/search/${mediaType}?query=${encodeURIComponent(search)}&page=1`
+      : `/${mediaType}/popular?language=en-US&page=1`;
+    const req = tmdbRequest(path, tmdbKey);
+    const res = await axios.get(req.url, { timeout: 10000, ...req.opts });
     const results = (res.data && res.data.results) || [];
     return results.slice(0, 20).map(r => {
       const isTv = mediaType === 'tv';
@@ -129,9 +130,10 @@ async function searchCatalog(type, search) {
 
 const builder = new addonBuilder(manifest);
 
-builder.defineCatalogHandler(async ({ type, id, extra }) => {
+builder.defineCatalogHandler(async ({ type, id, extra, config = {} }) => {
   const search = extra && extra.search;
-  const metas = await searchCatalog(type, search);
+  const cfg = { ...config, ...(global.currentRequestConfig || {}) };
+  const metas = await searchCatalog(type, search, cfg.tmdbKey);
   return { metas };
 });
 
@@ -159,10 +161,10 @@ builder.defineStreamHandler(async ({ type, id, extra = {}, config = {} }) => {
 
   console.log(`[addon] stream request type=${type} id=${rawId}${season ? ` S${season}E${episode}` : ''} providers=${activeProviders.map(p => p.key).join(',')}`);
 
-  const jobs = activeProviders.map(p => withTimeout(
+  const jobs = activeProviders.map(p => withTmdbKey(reqConfig.tmdbKey, () => withTimeout(
     runProvider(p, { tmdbId: rawId, mediaType, season, episode, requestConfig: reqConfig }),
     parseInt(process.env.PROVIDER_TIMEOUT_MS || '25000', 10)
-  ));
+  )));
 
   const results = await Promise.all(jobs);
   const streams = results.flat();
