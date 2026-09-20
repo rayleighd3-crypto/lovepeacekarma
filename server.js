@@ -338,6 +338,44 @@ function serveConfigurePage(req, res) {
 app.get('/', serveConfigurePage);
 app.get(/^\/(?:.*\/)?configure\/?$/, serveConfigurePage);
 
+// ---------- TEMPORARY diagnostics (remove once the deployment is verified) ----------
+// Reports why a provider yields nothing in the deployed runtime: module resolution,
+// the provider's exports, the caught error, and (for netmirror) the resolved API base.
+app.get('/diag/:provider', async (req, res) => {
+  const out = { provider: req.params.provider, node: process.version, checks: {} };
+  try {
+    require.resolve('cheerio-without-node-native');
+    out.checks.cheerioShim = 'resolved';
+  } catch (e) {
+    out.checks.cheerioShim = 'MISSING: ' + e.message.slice(0, 80);
+  }
+  out.checks.fetch = typeof fetch;
+  try {
+    const mod = require('./providers/' + req.params.provider);
+    out.exports = Object.keys(mod);
+    if (typeof mod.resolveApiUrl === 'function') {
+      try { out.apiBase = await mod.resolveApiUrl(); } catch (e) { out.apiBaseError = e.message.slice(0, 120); }
+    }
+    const tmdb = req.query.tmdb || '27205';
+    const type = req.query.type || 'movie';
+    const season = req.query.season ? parseInt(req.query.season, 10) : null;
+    const episode = req.query.episode ? parseInt(req.query.episode, 10) : null;
+    try {
+      const started = Date.now();
+      const streams = await mod.getStreams(tmdb, type, season, episode);
+      out.ms = Date.now() - started;
+      out.streams = (streams || []).length;
+      out.sample = streams && streams[0] ? String(streams[0].url).slice(0, 90) : null;
+    } catch (err) {
+      out.callError = err.message.slice(0, 200);
+      out.callStack = String(err.stack || '').split('\n').slice(1, 4).map(s => s.trim().slice(0, 120));
+    }
+  } catch (err) {
+    out.requireError = err.message.slice(0, 200);
+  }
+  res.json(out);
+});
+
 // Bare manifest (no config) -> force the configure page instead of serving a manifest
 const addonInterface = builder.getInterface();
 const router = getRouter(addonInterface);
