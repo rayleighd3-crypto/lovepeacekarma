@@ -96,50 +96,90 @@ function renderPage(prefill) {
 <html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>LovePeaceKarma — Configure</title>
 <style>
-  body{font-family:system-ui,sans-serif;max-width:640px;margin:40px auto;padding:0 16px;color:#222}
-  h1{color:#8e24aa;margin-bottom:4px}
-  .sub{color:#666;margin-bottom:24px}
-  .provider{display:flex;align-items:flex-start;gap:10px;padding:12px 14px;border:1px solid #e3e3e3;border-radius:8px;margin-bottom:10px}
-  .provider.checked{border-color:#8e24aa;background:#faf6fb}
-  .provider input{margin-top:4px;width:18px;height:18px}
-  .provider b{display:block}
-  .provider small{color:#777}
-  input[type=text]{width:100%;padding:10px;border:1px solid #ccc;border-radius:6px;font-size:14px;box-sizing:border-box}
-  button{background:#8e24aa;color:#fff;border:none;padding:12px 18px;border-radius:6px;font-size:15px;cursor:pointer;margin-top:16px}
-  button:disabled{background:#bbb;cursor:not-allowed}
-  .urlout{margin-top:16px;word-break:break-all;background:#f4f4f4;padding:10px;border-radius:6px;display:none}
-  .err{color:#c62828;display:none;margin-top:10px}
-  .ok{color:#2e7d32;display:none;margin-top:8px}
-  .warn{color:#b26a00;display:none;margin-top:8px}
-  .box{border:1px solid #e3e3e3;border-radius:8px;padding:14px;margin-bottom:18px;background:#fcfbfd}
-  .stamp{color:#aaa;font-size:12px;margin-top:14px}
-  label,.cookie{font-size:14px}
+  *{box-sizing:border-box}
+  :root{--accent:#a855f7;--accent2:#7c3aed;--bg:#0a0a0f;--border:rgba(255,255,255,.08);--txt:#e7e7ea;--muted:#8b8b96}
+  html,body{margin:0;padding:0}
+  body{font-family:system-ui,-apple-system,'Segoe UI',sans-serif;background:var(--bg);color:var(--txt);min-height:100vh;padding:48px 16px;overflow-x:hidden}
+  body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
+    background:radial-gradient(640px 420px at 18% -4%,rgba(168,85,247,.16),transparent 62%),
+               radial-gradient(540px 380px at 88% 104%,rgba(124,58,237,.11),transparent 62%)}
+  .wrap{position:relative;z-index:1;max-width:660px;margin:0 auto}
+  h1{margin:0 0 4px;font-size:30px;font-weight:700;letter-spacing:-.02em;
+    background:linear-gradient(92deg,#f5f3ff 10%,#c4b5fd 55%,#a855f7 95%);-webkit-background-clip:text;background-clip:text;color:transparent}
+  .sub{color:var(--muted);margin:0 0 24px;font-size:14px;line-height:1.55}
+  .card{background:rgba(255,255,255,.03);border:1px solid var(--border);border-radius:16px;padding:24px;
+    box-shadow:0 8px 40px rgba(0,0,0,.45),inset 0 1px 0 rgba(255,255,255,.05)}
+  .box{border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:22px;background:rgba(255,255,255,.02)}
+  label b{font-size:14px}
+  .tag{color:var(--accent);font-weight:500;font-size:12.5px}
+  h3{margin:0 0 12px;font-size:15px;letter-spacing:.01em;color:#d6d3e0}
+  .provider{display:flex;align-items:flex-start;gap:12px;padding:13px 16px;border:1px solid var(--border);border-radius:12px;
+    margin-bottom:10px;cursor:pointer;background:rgba(255,255,255,.02);transition:border-color .18s,background .18s,box-shadow .18s,transform .18s;position:relative}
+  .provider:hover{border-color:rgba(168,85,247,.45);background:rgba(168,85,247,.05);transform:translateY(-1px)}
+  .provider.checked{border-color:rgba(168,85,247,.7);background:rgba(168,85,247,.09);
+    box-shadow:0 0 0 1px rgba(168,85,247,.25),0 4px 24px rgba(168,85,247,.12)}
+  .provider input{position:absolute;opacity:0;pointer-events:none}
+  .cb{width:20px;height:20px;border-radius:6px;border:1.5px solid rgba(255,255,255,.28);flex-shrink:0;margin-top:1px;
+    display:grid;place-items:center;transition:background .15s,border-color .15s}
+  .cb::after{content:'';width:9px;height:5px;border-left:2px solid #fff;border-bottom:2px solid #fff;
+    transform:rotate(-45deg) scale(0);transform-origin:center;transition:transform .15s;margin-top:-2px}
+  .provider.checked .cb{background:linear-gradient(135deg,var(--accent),var(--accent2));border-color:transparent}
+  .provider.checked .cb::after{transform:rotate(-45deg) scale(1)}
+  .ptext b{display:block;font-size:14.5px}
+  .ptext small{color:var(--muted);font-size:12.5px;line-height:1.45}
+  input[type=text]{width:100%;padding:12px 14px;background:rgba(0,0,0,.35);border:1px solid var(--border);border-radius:10px;
+    color:var(--txt);font-size:13.5px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;outline:none;transition:border-color .15s,box-shadow .15s}
+  input[type=text]:focus{border-color:rgba(168,85,247,.6);box-shadow:0 0 0 3px rgba(168,85,247,.15),0 0 24px rgba(168,85,247,.1)}
+  input[type=text]::placeholder{color:#55555f}
+  button{background:linear-gradient(135deg,#a855f7,#7c3aed);color:#fff;border:none;padding:14px 18px;border-radius:12px;
+    font-size:15px;font-weight:600;cursor:pointer;margin-top:20px;width:100%;letter-spacing:.01em;
+    transition:transform .18s,box-shadow .18s,filter .18s;box-shadow:0 4px 24px rgba(168,85,247,.25)}
+  button:hover:not(:disabled){transform:translateY(-1px);box-shadow:0 6px 32px rgba(168,85,247,.4);filter:brightness(1.08)}
+  button:active:not(:disabled){transform:translateY(0)}
+  button:disabled{background:rgba(255,255,255,.06);color:#66666f;box-shadow:none;cursor:not-allowed}
+  .urlout{margin-top:16px;word-break:break-all;background:rgba(0,0,0,.35);border:1px solid var(--border);padding:12px 14px;
+    border-radius:10px;display:none;align-items:flex-start;gap:10px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12.5px;color:#c4b5fd}
+  .urlout span{flex:1;line-height:1.5}
+  .copybtn{flex-shrink:0;width:auto;margin:0;padding:6px 12px;border-radius:8px;font-size:12px;font-weight:600;
+    background:rgba(168,85,247,.15);border:1px solid rgba(168,85,247,.4);color:#d8b4fe;box-shadow:none}
+  .copybtn:hover{background:rgba(168,85,247,.28);transform:none;filter:none}
+  .err{color:#f87171;display:none;margin-top:10px;font-size:13px}
+  .ok{color:#4ade80;display:none;margin-top:8px;font-size:13px}
+  .warn{color:#fbbf24;display:none;margin-top:8px;font-size:13px}
+  .stamp{color:#55555f;font-size:11px;margin-top:16px;letter-spacing:.04em}
+  code{background:rgba(255,255,255,.06);padding:1px 5px;border-radius:5px;font-size:12.5px}
+  a{color:#c4b5fd}
 </style></head>
 <body>
+<div class="wrap">
 <h1>LovePeaceKarma</h1>
 <p class="sub">Direct HTTP streams from the sources you select. Metadata from TMDB.</p>
+<div class="card">
 <form id="f">
   <div class="box" id="febBoxBox">
-    <label><b>FebBox cookie <span id="ckTag" style="color:#8e24aa">— needed only for ShowBox</span></b></label>
-    <p class="sub" style="margin:6px 0 10px">ShowBox streams come from FebBox and need your own cookie (each FebBox account gets 100GB/month before speeds are throttled). Log in to <a href="https://www.febbox.com" target="_blank">febbox.com</a>, open DevTools (F12) → Application → Cookies, copy the value of <code>ui</code>, and paste it below. Leave it blank if you don't want ShowBox.</p>
-    <input type="text" id="fbToken" value="${cookieVal}" placeholder="eyJhbG...NiIs...  (the ui= cookie value)">
+    <label for="fbToken"><b>FebBox cookie <span id="ckTag" class="tag">— needed only for ShowBox</span></b></label>
+    <p class="sub" style="margin:6px 0 10px">ShowBox streams come from FebBox and need your own cookie (each FebBox account gets 100GB/month before speeds are throttled). Log in to <a href="https://www.febbox.com" target="_blank" rel="noopener">febbox.com</a>, open DevTools (F12) → Application → Cookies, copy the value of <code>ui</code>, and paste it below. Leave it blank if you don't want ShowBox.</p>
+    <input type="text" id="fbToken" value="${cookieVal}" placeholder="eyJhbG...NiIs...  (the ui= cookie value)" autocomplete="off" spellcheck="false">
     <div class="ok" id="msgGood">✓ Cookie looks valid.</div>
     <div class="err" id="msgBad">This doesn't look like a FebBox cookie — it must be a JWT (three dot-separated parts) that hasn't expired.</div>
     <div class="warn" id="msgWarn">ShowBox is selected but no valid cookie was entered — ShowBox will fail or be skipped until you paste a good one.</div>
   </div>
-  <h3 style="margin-bottom:10px">Choose your sources</h3>
+  <h3>Choose your sources</h3>
   <div id="provs">
     ${ALL_PROVIDERS.map(p => `
     <label class="provider" data-key="${p.key}">
       <input type="checkbox" name="providers" value="${p.key}"${picked.includes(p.key) ? ' checked' : ''}>
-      <span><b>${p.label}</b><small>${p.desc}</small></span>
+      <span class="cb" aria-hidden="true"></span>
+      <span class="ptext"><b>${p.label}</b><small>${p.desc}</small></span>
     </label>`).join('')}
   </div>
   <button type="submit" id="installBtn" disabled>Select at least one source</button>
-  <div class="urlout" id="urlout"></div>
-  <p class="sub" id="finalHint" style="display:none;margin-top:8px">Copy the URL above and paste it into Stremio → Addons → Add URL.</p>
-  <p class="stamp">configure build: cookie-box-always-visible-2026-09-19d</p>
+  <div class="urlout" id="urlout"><span id="urltext"></span><button type="button" class="copybtn" id="copyBtn">Copy</button></div>
+  <p class="sub" id="finalHint" style="display:none;margin-top:8px;margin-bottom:0">Copy the URL above and paste it into Stremio → Addons → Add URL.</p>
+  <p class="stamp">configure build: dark-premium-2026-09-20</p>
 </form>
+</div>
+</div>
 <script>
   const boxes=[...document.querySelectorAll('input[name=providers]')];
   const febBoxBox=document.getElementById('febBoxBox');
@@ -175,9 +215,19 @@ function renderPage(prefill) {
     if(picks.length)configParts.push('providers='+picks.join(','));
     if(document.querySelector('input[value=showbox]').checked)configParts.push('cookie='+encodeURIComponent(fbTokenInput.value.trim()));
     const url=location.origin+'/manifest.json?'+configParts.join('&');
-    out.textContent=url;
-    out.style.display='block';
+    document.getElementById('urltext').textContent=url;
+    out.style.display='flex';
     hint.style.display='block';
+  });
+  document.getElementById('copyBtn').addEventListener('click',async()=>{
+    const btn=document.getElementById('copyBtn');
+    try{await navigator.clipboard.writeText(document.getElementById('urltext').textContent);btn.textContent='Copied ✓'}
+    catch(e){
+      const r=document.createRange();r.selectNodeContents(document.getElementById('urltext'));
+      const s=getSelection();s.removeAllRanges();s.addRange(r);document.execCommand('copy');s.removeAllRanges();
+      btn.textContent='Copied ✓';
+    }
+    setTimeout(()=>btn.textContent='Copy',1600);
   });
   refresh();
 </script>
