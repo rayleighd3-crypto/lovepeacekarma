@@ -265,7 +265,22 @@ async function loadExtractor(url, referer = MAIN_URL) {
 async function search(query) {
   await fetchAndUpdateDomain();
   HEADERS.Referer = `${MAIN_URL}/`;
-  const response = await makeRequest(`${MAIN_URL}/?s=${encodeURIComponent(query)}`, { headers: HEADERS });
+  // The site's search moved: `?s=<q>` is now ignored (it returns the same
+  // sidebar listing for every query, so nothing matches and the provider yields
+  // zero streams). The working path is `/search/<q>`, which the site's own form
+  // equivalent resolves to. Keep `?s=` as a fallback for older mirrors.
+  const urls = [
+    `${MAIN_URL}/search/${encodeURIComponent(query)}`,
+    `${MAIN_URL}/?s=${encodeURIComponent(query)}`,
+  ];
+  let response;
+  for (const u of urls) {
+    try {
+      response = await makeRequest(u, { headers: HEADERS });
+      if (response && response.data && String(response.data).length > 1000) break;
+    } catch (e) { response = null; }
+  }
+  if (!response) return [];
   const $ = cheerio.load(response.data);
   let results = [];
 

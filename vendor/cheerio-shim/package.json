@@ -1,0 +1,7 @@
+{
+  "name": "cheerio-without-node-native",
+  "version": "1.0.0",
+  "description": "Local shim mapping the upstream provider's `cheerio-without-node-native` import onto the cheerio already used by LovePeaceKarma.",
+  "main": "index.js",
+  "license": "MIT"
+}

@@ -13,6 +13,13 @@ const ALL_PROVIDERS = [
   { key: 'videasy', envKey: 'VIDEASY', label: 'Videasy' },
   { key: 'castle', envKey: 'CASTLE', label: 'Castle' },
   { key: 'showbox', envKey: 'SHOWBOX', label: 'ShowBox' },
+  { key: 'netmirror', envKey: 'NETMIRROR', label: 'Netmirror' },
+  { key: 'playimdb', envKey: 'PLAYIMDB', label: 'PlayIMDb' },
+  { key: 'movix', envKey: 'MOVIX', label: 'Movix' },
+  { key: 'purstream', envKey: 'PURSTREAM', label: 'Purstream' },
+  { key: 'einthusan', envKey: 'EINTHUSAN', label: 'Einthusan' },
+  { key: 'animezey', envKey: 'ANIMEZEY', label: 'Animezey' },
+  { key: 'topcartoons', envKey: 'TOPCARTOONS', label: 'TopCartoons' },
 ];
 
 // Server-side fallback list (env). Per-user config takes priority.
@@ -53,6 +60,13 @@ function providerFns(key) {
     case 'videasy': return require('./providers/videasy');
     case 'castle': return require('./providers/castle');
     case 'showbox': return require('./providers/showbox');
+    case 'netmirror': return require('./providers/netmirror');
+    case 'playimdb': return require('./providers/playimdb');
+    case 'movix': return require('./providers/movix');
+    case 'purstream': return require('./providers/purstream');
+    case 'einthusan': return require('./providers/einthusan');
+    case 'animezey': return require('./providers/animezey');
+    case 'topcartoons': return require('./providers/topcartoons');
     default: return null;
   }
 }
@@ -89,6 +103,20 @@ async function runProvider(p, { tmdbId, mediaType, season, episode, requestConfi
         return await fns.getCastleStreams(tmdbId, mediaType, season, episode);
       case 'showbox':
         return await fns.getShowBoxStreams(tmdbId, mediaType, season, episode, requestConfig);
+      case 'netmirror':
+        return await fns.getStreams(tmdbId, mediaType, season, episode);
+      case 'playimdb':
+        return await fns.getStreams(tmdbId, mediaType, season, episode);
+      case 'movix':
+        return await fns.getStreams(tmdbId, mediaType, season, episode);
+      case 'purstream':
+        return await fns.getStreams(tmdbId, mediaType, season, episode);
+      case 'einthusan':
+        return await fns.getStreams(tmdbId, mediaType, season, episode);
+      case 'animezey':
+        return await fns.getStreams(tmdbId, mediaType, season, episode);
+      case 'topcartoons':
+        return await fns.getStreams(tmdbId, mediaType, season, episode);
       default:
         return [];
     }

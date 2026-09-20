@@ -13,6 +13,13 @@ const ALL_PROVIDERS = [
   { key: 'videasy', label: 'Videasy', desc: 'Multi-provider embeds (Yoru/Breach/Omen)' },
   { key: 'castle', label: 'Castle', desc: 'Multi-language movies & TV (AES-CBC api)' },
   { key: 'showbox', label: 'ShowBox (FebBox)', desc: 'Needs your FebBox ui cookie. JWT from febbox.com after login.' },
+  { key: 'netmirror', label: 'Netmirror', desc: 'HLS via the Netmirror NewTV API (Netflix / Prime Video / Hotstar).' },
+  { key: 'playimdb', label: 'PlayIMDb', desc: 'Multi-resolution HLS (vaplayer)' },
+  { key: 'movix', label: 'Movix', desc: 'HLS streams (finepulfe resolver)' },
+  { key: 'purstream', label: 'Purstream', desc: 'HLS streams (same resolver as Movix)' },
+  { key: 'einthusan', label: 'Einthusan', desc: 'Indian-language films (Hindi, Tamil, Telugu, Malayalam, Kannada, Bengali)' },
+  { key: 'animezey', label: 'Animezey', desc: 'Anime with multi-language options' },
+  { key: 'topcartoons', label: 'TopCartoons', desc: 'Cartoons and animation' },
 ];
 
 const app = express();
@@ -119,6 +126,22 @@ function renderPage(prefill) {
     .map(s => String(s).trim().toLowerCase()).filter(k => VALID_KEYS.includes(k));
   const cookieVal = esc(prefill.cookie || '');
   const tmdbVal = esc(prefill.tmdbKey || '');
+  // The FebBox cookie box is injected directly under the ShowBox row (see the
+  // provider map below) so the dependency is visually obvious. It is always in
+  // the DOM — never JS-gated, so a prefilled or filtered element can't go
+  // missing — but visually collapsed until ShowBox is picked (or a cookie is
+  // already present). Ids are preserved for the validation JS.
+  const cookieBoxHtml = `
+  <div class="cookiewrap" id="cookieWrap">
+  <div class="box cookiebox" id="febBoxBox">
+    <label for="fbToken"><b>FebBox cookie <span id="ckTag" class="tag">— needed only for ShowBox</span></b></label>
+    <p class="sub" style="margin:6px 0 10px">ShowBox streams come from FebBox and need your own cookie (each FebBox account gets 100GB/month before speeds are throttled). Log in to <a href="https://www.febbox.com" target="_blank" rel="noopener">febbox.com</a>, open DevTools (F12) → Application → Cookies, copy the value of <code>ui</code>, and paste it below. Leave it blank if you don't want ShowBox.</p>
+    <input type="text" id="fbToken" value="${cookieVal}" placeholder="eyJhbG...NiIs...  (the ui= cookie value)" autocomplete="off" spellcheck="false">
+    <div class="ok" id="msgGood">✓ Cookie looks valid.</div>
+    <div class="err" id="msgBad">This doesn't look like a FebBox cookie — it must be a JWT (three dot-separated parts) that hasn't expired.</div>
+    <div class="warn" id="msgWarn">ShowBox is selected but no valid cookie was entered — ShowBox will fail or be skipped until you paste a good one.</div>
+  </div>
+  </div>`;
   return `<!doctype html>
 <html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>LovePeaceKarma — Configure</title>
@@ -174,6 +197,17 @@ function renderPage(prefill) {
   .ok{color:#4ade80;display:none;margin-top:8px;font-size:13px}
   .warn{color:#fbbf24;display:none;margin-top:8px;font-size:13px}
   .stamp{color:#55555f;font-size:11px;margin-top:16px;letter-spacing:.04em}
+  /* FebBox cookie box sits directly under the ShowBox row, indented + accent rail
+     so it reads as a child of that option. Collapsed (max-height 0) until ShowBox
+     is picked or a cookie is already present; overflow:hidden is required for the
+     max-height animation, so the accent uses inset shadows (never clipped). */
+  .cookiewrap{max-height:0;opacity:0;overflow:hidden;margin:0;padding-top:0;
+    transition:max-height .3s ease,opacity .22s ease,margin .3s ease}
+  .cookiewrap.open{max-height:640px;opacity:1;margin:-2px 0 10px 34px}
+  .cookiebox{border-left:2px solid rgba(255,255,255,.14);border-radius:2px 12px 12px 2px;background:rgba(255,255,255,.025);margin:0}
+  .provider.checked + .cookiewrap .cookiebox{border-left-color:rgba(168,85,247,.75);
+    box-shadow:inset 3px 0 0 rgba(168,85,247,.3),inset 0 0 26px rgba(168,85,247,.07)}
+  @media(max-width:520px){.cookiewrap.open{margin-left:0}}
   code{background:rgba(255,255,255,.06);padding:1px 5px;border-radius:5px;font-size:12.5px}
   a{color:#c4b5fd}
 </style></head>
@@ -190,14 +224,6 @@ function renderPage(prefill) {
     <div class="ok" id="tmdbGood">✓ TMDB key looks valid — it will be used for search and title lookups.</div>
     <div class="err" id="tmdbBad">That doesn't look like a TMDB key — v3 keys are 32 hex characters. Paste the "API Key (v3 auth)" value.</div>
   </div>
-  <div class="box" id="febBoxBox">
-    <label for="fbToken"><b>FebBox cookie <span id="ckTag" class="tag">— needed only for ShowBox</span></b></label>
-    <p class="sub" style="margin:6px 0 10px">ShowBox streams come from FebBox and need your own cookie (each FebBox account gets 100GB/month before speeds are throttled). Log in to <a href="https://www.febbox.com" target="_blank" rel="noopener">febbox.com</a>, open DevTools (F12) → Application → Cookies, copy the value of <code>ui</code>, and paste it below. Leave it blank if you don't want ShowBox.</p>
-    <input type="text" id="fbToken" value="${cookieVal}" placeholder="eyJhbG...NiIs...  (the ui= cookie value)" autocomplete="off" spellcheck="false">
-    <div class="ok" id="msgGood">✓ Cookie looks valid.</div>
-    <div class="err" id="msgBad">This doesn't look like a FebBox cookie — it must be a JWT (three dot-separated parts) that hasn't expired.</div>
-    <div class="warn" id="msgWarn">ShowBox is selected but no valid cookie was entered — ShowBox will fail or be skipped until you paste a good one.</div>
-  </div>
   <h3>Choose your sources</h3>
   <div id="provs">
     ${ALL_PROVIDERS.map(p => `
@@ -205,12 +231,12 @@ function renderPage(prefill) {
       <input type="checkbox" name="providers" value="${p.key}"${picked.includes(p.key) ? ' checked' : ''}>
       <span class="cb" aria-hidden="true"></span>
       <span class="ptext"><b>${p.label}</b><small>${p.desc}</small></span>
-    </label>`).join('')}
+    </label>${p.key === 'showbox' ? cookieBoxHtml : ''}`).join('')}
   </div>
   <button type="submit" id="installBtn" disabled>Select at least one source</button>
   <div class="urlout" id="urlout"><span id="urltext"></span><button type="button" class="copybtn" id="copyBtn">Copy</button></div>
   <p class="sub" id="finalHint" style="display:none;margin-top:8px;margin-bottom:0">Copy the URL above and paste it into Stremio → Addons → Add URL.</p>
-  <p class="stamp">configure build: dark-premium-tmdb-key-2026-09-20</p>
+  <p class="stamp">configure build: cookie-collapse-under-showbox-2026-09-20</p>
 </form>
 </div>
 </div>
@@ -244,6 +270,10 @@ function renderPage(prefill) {
     msgBad.style.display=(has&&!valid)?'block':'none';
     msgGood.style.display=valid?'block':'none';
     msgWarn.style.display=(showbox&&!valid)?'block':'none';
+    // Collapsed until ShowBox is picked — but stay open if a cookie is already
+    // present (prefilled from the install URL, or typed then ShowBox unticked).
+    const wrap=document.getElementById('cookieWrap');
+    if(wrap) wrap.classList.toggle('open', showbox || has);
     // TMDB key is optional; only complain when something was actually typed
     const thas=tmdbInput.value.trim().length>0;
     const tvalid=isTmdbKey(tmdbInput.value);
@@ -252,7 +282,21 @@ function renderPage(prefill) {
     btn.disabled=!any;
     btn.textContent=any?('Install with '+boxes.filter(b=>b.checked).length+' source(s)'):'Select at least one source';
   }
-  boxes.forEach(b=>b.addEventListener('change',()=>{b.closest('.provider').classList.toggle('checked',b.checked);refresh()}));
+  boxes.forEach(b=>b.addEventListener('change',()=>{
+    b.closest('.provider').classList.toggle('checked',b.checked);
+    refresh();
+    // The cookie box now sits under the ShowBox row and expands from zero height:
+    // if the row is near the fold the box would grow straight off-screen, so park
+    // its top around a quarter down the viewport (scrollIntoView smooth is
+    // unreliable in webviews, so use window.scrollTo).
+    if(b.value==='showbox'&&b.checked){
+      const el=document.getElementById('cookieWrap');
+      const r=el?el.getBoundingClientRect():null;
+      if(r&&(r.top<60||r.bottom>window.innerHeight-140)){
+        window.scrollTo({top:window.scrollY+r.top-Math.min(200,window.innerHeight*0.25),behavior:'auto'});
+      }
+    }
+  }));
   fbTokenInput.addEventListener('input',refresh);
   tmdbInput.addEventListener('input',refresh);
   document.getElementById('f').addEventListener('submit',e=>{
