@@ -350,6 +350,34 @@ app.get('/diag/:provider', async (req, res) => {
     out.checks.cheerioShim = 'MISSING: ' + e.message.slice(0, 80);
   }
   out.checks.fetch = typeof fetch;
+  // netmirror: probe the first read hop of the chain with the provider's own headers,
+  // so a bot-block/403 at the search step is visible instead of swallowed.
+  if (req.params.provider === 'netmirror') {
+    try {
+      const mod = require('./providers/netmirror');
+      const base = await mod.resolveApiUrl();
+      const headers = {
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        Pragma: 'no-cache', Expires: '0',
+        'X-Requested-With': 'NetmirrorNewTV v1.0',
+        Ott: 'nf',
+        Accept: 'application/json, text/plain, */*',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+      };
+      const r = await fetch(`${base}/newtv/search.php?s=Inception`, { headers });
+      const t = await r.text();
+      out.searchProbe = {
+        url: `${base}/newtv/search.php?s=Inception`,
+        status: r.status,
+        contentType: r.headers.get('content-type'),
+        server: r.headers.get('server'),
+        cfMitigated: r.headers.get('cf-mitigated'),
+        body: t.slice(0, 240),
+      };
+    } catch (e) {
+      out.searchProbe = { error: e.message.slice(0, 160) };
+    }
+  }
   try {
     const mod = require('./providers/' + req.params.provider);
     out.exports = Object.keys(mod);
