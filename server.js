@@ -198,16 +198,15 @@ function renderPage(prefill) {
   .warn{color:#fbbf24;display:none;margin-top:8px;font-size:13px}
   .stamp{color:#55555f;font-size:11px;margin-top:16px;letter-spacing:.04em}
   /* FebBox cookie box sits directly under the ShowBox row, indented + accent rail
-     so it reads as a child of that option. Collapsed (max-height 0) until ShowBox
-     is picked or a cookie is already present; overflow:hidden is required for the
-     max-height animation, so the accent uses inset shadows (never clipped). */
-  .cookiewrap{max-height:0;opacity:0;overflow:hidden;margin:0;padding-top:0;
-    transition:max-height .3s ease,opacity .22s ease,margin .3s ease}
-  .cookiewrap.open{max-height:640px;opacity:1;margin:-2px 0 10px 34px}
-  .cookiebox{border-left:2px solid rgba(255,255,255,.14);border-radius:2px 12px 12px 2px;background:rgba(255,255,255,.025);margin:0}
+     so it reads as a child of that option. It is ALWAYS visible: an earlier version
+     collapsed it until ShowBox was ticked, which users (including the addon owner)
+     read as "the field is missing" on a fresh install URL - the same failure mode as
+     the original JS-gated field. Do not hide it again. */
+  .cookiewrap{display:block}
+  .cookiebox{border-left:2px solid rgba(255,255,255,.14);border-radius:2px 12px 12px 2px;background:rgba(255,255,255,.025);margin:-2px 0 10px 34px}
   .provider.checked + .cookiewrap .cookiebox{border-left-color:rgba(168,85,247,.75);
     box-shadow:inset 3px 0 0 rgba(168,85,247,.3),inset 0 0 26px rgba(168,85,247,.07)}
-  @media(max-width:520px){.cookiewrap.open{margin-left:0}}
+  @media(max-width:520px){.cookiebox{margin-left:0}}
   code{background:rgba(255,255,255,.06);padding:1px 5px;border-radius:5px;font-size:12.5px}
   a{color:#c4b5fd}
 </style></head>
@@ -236,7 +235,7 @@ function renderPage(prefill) {
   <button type="submit" id="installBtn" disabled>Select at least one source</button>
   <div class="urlout" id="urlout"><span id="urltext"></span><button type="button" class="copybtn" id="copyBtn">Copy</button></div>
   <p class="sub" id="finalHint" style="display:none;margin-top:8px;margin-bottom:0">Copy the URL above and paste it into Stremio → Addons → Add URL.</p>
-  <p class="stamp">configure build: cookie-collapse-under-showbox-2026-09-20</p>
+  <p class="stamp">configure build: cookie-always-visible-2026-09-20</p>
 </form>
 </div>
 </div>
@@ -270,10 +269,6 @@ function renderPage(prefill) {
     msgBad.style.display=(has&&!valid)?'block':'none';
     msgGood.style.display=valid?'block':'none';
     msgWarn.style.display=(showbox&&!valid)?'block':'none';
-    // Collapsed until ShowBox is picked — but stay open if a cookie is already
-    // present (prefilled from the install URL, or typed then ShowBox unticked).
-    const wrap=document.getElementById('cookieWrap');
-    if(wrap) wrap.classList.toggle('open', showbox || has);
     // TMDB key is optional; only complain when something was actually typed
     const thas=tmdbInput.value.trim().length>0;
     const tvalid=isTmdbKey(tmdbInput.value);
@@ -285,17 +280,6 @@ function renderPage(prefill) {
   boxes.forEach(b=>b.addEventListener('change',()=>{
     b.closest('.provider').classList.toggle('checked',b.checked);
     refresh();
-    // The cookie box now sits under the ShowBox row and expands from zero height:
-    // if the row is near the fold the box would grow straight off-screen, so park
-    // its top around a quarter down the viewport (scrollIntoView smooth is
-    // unreliable in webviews, so use window.scrollTo).
-    if(b.value==='showbox'&&b.checked){
-      const el=document.getElementById('cookieWrap');
-      const r=el?el.getBoundingClientRect():null;
-      if(r&&(r.top<60||r.bottom>window.innerHeight-140)){
-        window.scrollTo({top:window.scrollY+r.top-Math.min(200,window.innerHeight*0.25),behavior:'auto'});
-      }
-    }
   }));
   fbTokenInput.addEventListener('input',refresh);
   tmdbInput.addEventListener('input',refresh);
